@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card" style="--card-color:#ef4444;--card-icon-bg:rgba(239,68,68,0.1)">
+            <div class="stat-card-icon"><i class="bi bi-x-circle-fill" style="color:#ef4444"></i></div>
+            <div class="stat-card-value">{{ counts.out }}</div>
+            <div class="stat-card-label">Out of Stock</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="--card-color:#f97316;--card-icon-bg:rgba(249,115,22,0.1)">
+            <div class="stat-card-icon"><i class="bi bi-exclamation-triangle-fill" style="color:#f97316"></i></div>
+            <div class="stat-card-value">{{ counts.critical }}</div>
+            <div class="stat-card-label">Critical (&le;5 units)</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="--card-color:#f59e0b;--card-icon-bg:rgba(245,158,11,0.1)">
+            <div class="stat-card-icon"><i class="bi bi-arrow-down-circle-fill" style="color:#f59e0b"></i></div>
+            <div class="stat-card-value">{{ counts.low }}</div>
+            <div class="stat-card-label">Low Stock</div>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <span class="table-card-title">🔁 Restocking Suggestions</span>
+        <div class="d-flex gap-2">
+            <span class="badge bg-danger">{{ counts.out }} Out of Stock</span>
+            <span class="badge bg-warning text-dark">{{ counts.critical + counts.low }} Low Stock</span>
+        </div>
+    </div>
+    {% if not need_restock %}
+    <div class="empty-state"><i class="bi bi-check-circle-fill text-success" style="opacity:1"></i><p class="text-success fw-600">All products are well-stocked!</p></div>
+    {% else %}
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Product</th><th>Current Stock</th><th>Min Level</th>
+                    <th>Avg Monthly Sales</th><th>Suggested Reorder</th>
+                    <th>Supplier</th><th>Priority</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in need_restock %}
+            <tr>
+                <td>
+                    <div class="fw-600">{{ p.name }}</div>
+                    <small class="text-muted">{{ p.product_code }} · {{ p.cat or '' }}</small>
+                </td>
+                <td>
+                    <span class="fw-700" style="color:{{ p.pcol }}">{{ p.stock_quantity }}</span>
+                    <div class="stock-bar mt-1">
+                        <div class="stock-fill" data-pct="{{ p.pct }}" style="background:{{ p.pcol }};width:0%"></div>
+                    </div>
+                </td>
+                <td>{{ p.min_stock_level }}</td>
+                <td>{{ '%.1f'|format(p.avg_monthly_sales) }} units</td>
+                <td>
+                    <span class="fw-700 text-primary-custom">{{ p.suggested }} units</span>
+                    <div style="font-size:11px;color:var(--text-muted);">
+                        Est. cost: {{ fmt_currency(p.est_cost) }}
+                    </div>
+                </td>
+                <td>
+                    {% if p.supplier_name %}
+                    <div class="fw-600" style="font-size:13px;">{{ p.supplier_name }}</div>
+                    <small class="text-muted">{{ p.supplier_email or '' }}</small>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td><span class="badge-status {{ p.pcls }}">{{ p.priority }}</span></td>
+                <td>
+                    <a href="{{ url_for('inventory.index') }}" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-lg me-1"></i>Restock
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

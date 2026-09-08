@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="search-bar">
+        <i class="bi bi-search"></i>
+        <input type="text" class="form-control" placeholder="Search suppliers…" id="tableSearch" value="{{ search }}"/>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#supplierModal" onclick="openAdd()">
+        <i class="bi bi-plus-lg me-1"></i>Add Supplier
+    </button>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header"><span class="table-card-title">🚚 Suppliers ({{ suppliers|length }})</span></div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Products</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% if not suppliers %}
+            <tr><td colspan="7"><div class="empty-state"><i class="bi bi-truck"></i><p>No suppliers found.</p></div></td></tr>
+            {% else %}
+            {% for s in suppliers %}
+            <tr>
+                <td><code>{{ s.supplier_code }}</code></td>
+                <td class="fw-600">{{ s.name }}</td>
+                <td>{{ s.email or '—' }}</td>
+                <td>{{ s.phone or '—' }}</td>
+                <td>{{ s.city or '—' }}</td>
+                <td><span class="badge bg-primary-subtle text-primary">{{ s.product_count }} products</span></td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-primary" onclick='editSupplier({{ s|tojson }})'><i class="bi bi-pencil"></i></button>
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="action" value="delete"/>
+                            <input type="hidden" name="supplier_id" value="{{ s.id }}"/>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Delete this supplier?"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="supplierModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Add Supplier</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="action" id="formAction" value="add"/>
+          <input type="hidden" name="supplier_id" id="supplierId"/>
+          <div class="row g-3">
+            <div class="col-12"><label class="form-label">Supplier Name *</label><input type="text" name="name" id="fName" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" id="fEmail" class="form-control"/></div>
+            <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" id="fPhone" class="form-control"/></div>
+            <div class="col-12"><label class="form-label">Address</label><textarea name="address" id="fAddress" class="form-control" rows="2"></textarea></div>
+            <div class="col-md-6"><label class="form-label">City</label><input type="text" name="city" id="fCity" class="form-control"/></div>
+            <div class="col-md-6"><label class="form-label">Country</label><input type="text" name="country" id="fCountry" class="form-control" value="India"/></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Supplier</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAdd() {
+    document.getElementById('modalTitle').textContent = 'Add Supplier';
+    document.getElementById('formAction').value = 'add';
+    document.getElementById('supplierId').value = '';
+    document.getElementById('fName').value = '';
+    document.getElementById('fEmail').value = '';
+    document.getElementById('fPhone').value = '';
+    document.getElementById('fAddress').value = '';
+    document.getElementById('fCity').value = '';
+    document.getElementById('fCountry').value = 'India';
+}
+function editSupplier(s) {
+    document.getElementById('modalTitle').textContent = 'Edit Supplier';
+    document.getElementById('formAction').value = 'edit';
+    document.getElementById('supplierId').value = s.id;
+    document.getElementById('fName').value = s.name || '';
+    document.getElementById('fEmail').value = s.email || '';
+    document.getElementById('fPhone').value = s.phone || '';
+    document.getElementById('fAddress').value = s.address || '';
+    document.getElementById('fCity').value = s.city || '';
+    document.getElementById('fCountry').value = s.country || 'India';
+    new bootstrap.Modal(document.getElementById('supplierModal')).show();
+}
+</script>
+{% endblock %}
