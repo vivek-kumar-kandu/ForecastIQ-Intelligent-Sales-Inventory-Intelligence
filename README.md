@@ -36,13 +36,13 @@ Open [http://localhost:5000](http://localhost:5000) in your browser. On macOS or
 
 ## Demo Accounts
 
-The initialized database includes these local demo users. All use the password `Admin@123`.
+The initialized database includes these local demo users:
 
-| Username | Role |
-| --- | --- |
-| `admin` | Admin |
-| `manager` | Manager |
-| `staff` | Staff |
+| Username | Role | Password |
+| --- | --- | --- |
+| `admin` | Admin | `Admin@123` |
+| `manager` | Manager | `Admin@123` |
+| `staff` | Staff | `Admin@123` |
 
 ## Milestones
 
