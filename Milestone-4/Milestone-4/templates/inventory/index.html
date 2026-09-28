@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row g-4 mb-4">
+    {% set cards = [
+        ('Total Inventory Value', fmt_currency(total_value), 'bi-archive-fill', '#4f46e5', 'rgba(79,70,229,0.1)'),
+        ('Total Stock Units', fmt_number(total_items), 'bi-boxes', '#10b981', 'rgba(16,185,129,0.1)'),
+        ('Fast Moving (30d)', fast_moving, 'bi-lightning-fill', '#f59e0b', 'rgba(245,158,11,0.1)'),
+        ('Low Stock Products', low_stock_cnt, 'bi-exclamation-triangle-fill', '#ef4444', 'rgba(239,68,68,0.1)'),
+    ] %}
+    {% for label, value, icon, color, bg in cards %}
+    <div class="col-6 col-md-3">
+        <div class="stat-card" style="--card-color:{{ color }};--card-icon-bg:{{ bg }}">
+            <div class="stat-card-icon"><i class="bi {{ icon }}" style="color:{{ color }}"></i></div>
+            <div class="stat-card-value">{{ value }}</div>
+            <div class="stat-card-label">{{ label }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="table-card">
+            <div class="table-card-header">
+                <span class="table-card-title">📦 Current Stock Levels</span>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#adjustModal">
+                    <i class="bi bi-arrow-left-right me-1"></i>Adjust Stock
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Stock</th><th>Min Level</th><th>Stock Level</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for p in products %}
+                    <tr>
+                        <td><code>{{ p.product_code }}</code></td>
+                        <td class="fw-600">{{ p.name }}</td>
+                        <td>{{ p.cat or '—' }}</td>
+                        <td class="fw-700">{{ p.stock_quantity }}</td>
+                        <td class="text-secondary">{{ p.min_stock_level }}</td>
+                        <td style="min-width:120px;">
+                            <div class="stock-bar">
+                                <div class="stock-fill" data-pct="{{ p.pct }}" style="background:{{ p.color }};width:0%"></div>
+                            </div>
+                            <small class="text-muted">{{ p.pct }}%</small>
+                        </td>
+                        <td><span class="badge-status {{ p.cls }}">{{ p.label }}</span></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="table-card">
+            <div class="table-card-header"><span class="table-card-title">🔄 Movement History</span></div>
+            <div style="max-height:520px;overflow-y:auto;">
+                <table class="table">
+                    <thead><tr><th>Product</th><th>Type</th><th>Qty</th><th>Date</th></tr></thead>
+                    <tbody>
+                    {% for m in movements %}
+                    <tr>
+                        <td style="max-width:130px;font-size:12px;">
+                            <div class="fw-600">{{ m.product_name[:20] }}</div>
+                            <code style="font-size:10px;">{{ m.product_code }}</code>
+                        </td>
+                        <td><span style="color:{{ m.type_color }};font-weight:700;">{{ m.type_icon }} {{ m.movement_type|capitalize }}</span></td>
+                        <td class="fw-700">{{ m.quantity }}</td>
+                        <td style="font-size:11px;color:var(--text-muted)">{{ fmt_date(m.created_at) }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Adjust Stock Modal -->
+<div class="modal fade" id="adjustModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Adjust Stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="mb-3">
+            <label class="form-label">Product</label>
+            <select name="product_id" class="form-select" required>
+              <option value="">— Select Product —</option>
+              {% for ap in all_products %}
+              <option value="{{ ap.id }}">{{ ap.name }} ({{ ap.stock_quantity }} in stock)</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Movement Type</label>
+            <select name="movement_type" class="form-select">
+              <option value="in">Stock In (Add)</option>
+              <option value="out">Stock Out (Remove)</option>
+              <option value="adjustment">Set Exact Quantity</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantity</label>
+            <input type="number" name="quantity" class="form-control" min="1" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Reason for adjustment…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Adjustment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="search-bar"><i class="bi bi-search"></i><input type="text" class="form-control" placeholder="Search users…" id="tableSearch"/></div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userModal" onclick="openAdd()">
+        <i class="bi bi-plus-lg me-1"></i>Add User
+    </button>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header"><span class="table-card-title">👤 Users ({{ users|length }})</span></div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Name</th><th>Email</th><th>Username</th><th>Phone</th><th>Role</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="user-avatar-sm" style="font-size:11px;">{{ u.full_name[0]|upper }}</div>
+                        <span class="fw-600">{{ u.full_name }}</span>
+                    </div>
+                </td>
+                <td>{{ u.email }}</td>
+                <td><code>{{ u.username }}</code></td>
+                <td>{{ u.phone or '—' }}</td>
+                <td><span class="badge {{ u.role_cls }}">{{ u.role|capitalize }}</span></td>
+                <td>{{ fmt_datetime(u.last_login) if u.last_login else 'Never' }}</td>
+                <td>
+                    <span class="badge-status {{ 'badge-in-stock' if u.status=='active' else 'badge-out-stock' }}">
+                        {{ u.status|capitalize }}
+                    </span>
+                </td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-primary" onclick='editUser({{ u|tojson }})'><i class="bi bi-pencil"></i></button>
+                        {% if u.id != current_user.id %}
+                        <form method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="action" value="delete"/>
+                            <input type="hidden" name="user_id" value="{{ u.id }}"/>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" data-confirm="Deactivate this user?"><i class="bi bi-person-x"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">Add User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="action" id="formAction" value="add"/>
+          <input type="hidden" name="user_id" id="userId"/>
+          <div class="row g-3">
+            <div class="col-12"><label class="form-label">Full Name *</label><input type="text" name="full_name" id="fName" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Email *</label><input type="email" name="email" id="fEmail" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Username *</label><input type="text" name="username" id="fUsername" class="form-control" required/></div>
+            <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" id="fPhone" class="form-control"/></div>
+            <div class="col-md-3"><label class="form-label">Role</label>
+              <select name="role" id="fRole" class="form-select">
+                <option value="staff">Staff</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="col-md-3"><label class="form-label">Status</label>
+              <select name="status" id="fStatus" class="form-select">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+            <div class="col-12"><label class="form-label">Password <small class="text-muted">(leave blank to keep current)</small></label>
+              <input type="password" name="password" id="fPassword" class="form-control" placeholder="Min. 6 characters"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAdd() {
+    document.getElementById('modalTitle').textContent = 'Add User';
+    document.getElementById('formAction').value = 'add';
+    ['userId','fName','fEmail','fUsername','fPhone','fPassword'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fRole').value = 'staff';
+    document.getElementById('fStatus').value = 'active';
+}
+function editUser(u) {
+    document.getElementById('modalTitle').textContent = 'Edit User';
+    document.getElementById('formAction').value = 'edit';
+    document.getElementById('userId').value = u.id;
+    document.getElementById('fName').value = u.full_name;
+    document.getElementById('fEmail').value = u.email;
+    document.getElementById('fUsername').value = u.username;
+    document.getElementById('fPhone').value = u.phone || '';
+    document.getElementById('fRole').value = u.role;
+    document.getElementById('fStatus').value = u.status;
+    document.getElementById('fPassword').value = '';
+    new bootstrap.Modal(document.getElementById('userModal')).show();
+}
+</script>
+{% endblock %}
