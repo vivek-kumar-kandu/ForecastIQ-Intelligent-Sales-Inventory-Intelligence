@@ -94,13 +94,25 @@ Whether tracking fast-moving items, calculating optimal safety stock levels, or 
 
 ForecastIQ implements time-series models from scratch in `utils.py` without external ML dependencies:
 
-| Algorithm | Formulation | Description |
-| :--- | :--- | :--- |
-| **Simple Moving Average** | $\hat{y}_{t+1} = \frac{1}{k} \sum_{i=0}^{k-1} y_{t-i}$ | Averages the last $k=3$ periods to eliminate noise. |
-| **Exponential Smoothing** | $S_t = \alpha \cdot y_t + (1 - \alpha) \cdot S_{t-1}$ | Applies decay constant $\alpha = 0.3$ prioritizing recent demand. |
-| **Linear Regression** | $\hat{y} = mx + b \quad \text{where } m = \frac{n\sum xy - \sum x \sum y}{n\sum x^2 - (\sum x)^2}$ | Ordinary Least Squares trend line projected to period $n+1$. |
-| **Ensemble Model** | $\hat{y}_{\text{ensemble}} = \frac{\hat{y}_{\text{MA}} + \hat{y}_{\text{ES}} + \hat{y}_{\text{LR}}}{3}$ | Combines predictions into a resilient consensus forecast. |
-| **Confidence Metric** | $\text{Confidence} = \max(0, 100 - \text{MAPE})$ | Backtests accuracy against historical actuals using MAPE percentage error. |
+### 1. Simple Moving Average (3-Period)
+Smooths short-term fluctuations by averaging the $k=3$ most recent observed periods:
+$$\hat{y}_{t+1} = \frac{1}{k} \sum_{i=0}^{k-1} y_{t-i}$$
+
+### 2. Exponential Smoothing ($\alpha = 0.3$)
+Employs geometric weight decay to give higher relevance to recent sales surges:
+$$S_t = \alpha \cdot y_t + (1 - \alpha) \cdot S_{t-1}$$
+
+### 3. Linear Regression (OLS Trend Analysis)
+Fits an Ordinary Least Squares trend line to extrapolate trajectory into future periods:
+$$\hat{y} = mx + b \quad \text{where} \quad m = \frac{n\sum xy - \sum x \sum y}{n\sum x^2 - (\sum x)^2}, \quad b = \frac{\sum y - m\sum x}{n}$$
+
+### 4. Ensemble Consensus Model
+Synthesizes all three independent algorithms into a balanced consensus estimate:
+$$\hat{y}_{\text{ensemble}} = \frac{\hat{y}_{\text{MA}} + \hat{y}_{\text{ES}} + \hat{y}_{\text{LR}}}{3}$$
+
+### 5. Confidence Score (MAPE Backtesting)
+Calculates historical prediction accuracy against actual sales using Mean Absolute Percentage Error:
+$$\text{Confidence} = \max(0, \, 100 - \text{MAPE}) \quad \text{where} \quad \text{MAPE} = \frac{100}{n} \sum_{i=1}^{n} \left| \frac{y_i - \hat{y}_i}{y_i} \right|$$
 
 ---
 
@@ -227,38 +239,31 @@ The pre-seeded database includes three ready-to-use accounts with different acce
 The SQLite relational schema (`database/schema.sql`) utilizes standard foreign keys and constraints:
 
 ```mermaid
-flowchart LR
-    subgraph MasterData ["Master Data"]
-        CAT["Categories"]
-        SUP["Suppliers"]
-        PROD["Products"]
+flowchart TD
+    subgraph Users ["👥 User Access"]
+        U["Admin / Manager / Staff"]
+    end
+
+    subgraph Master ["📦 Master Catalog & Customers"]
+        CAT["Categories"] --> PROD["Products Catalog"]
+        SUP["Suppliers"] --> PROD
         CUST["Customers"]
-        USR["Users & Staff"]
     end
 
-    subgraph Operations ["Operations & Orders"]
-        SALE["Sales Orders"]
-        ITEM["Sales Line Items"]
-        INV["Inventory Ledger"]
+    subgraph Transactions ["🛒 Point of Sale & Stock Ledger"]
+        SALE["Sales Orders"] --> ITEMS["Sales Line Items"]
+        PROD --> ITEMS
+        PROD <--> INV["Inventory Movements"]
     end
 
-    subgraph Intelligence ["Forecasting & Alerts"]
-        FC["Forecasts Engine"]
-        NOTIF["Notifications"]
-        SETT["Settings"]
+    subgraph Analytics ["📈 Intelligence & Alerts"]
+        PROD --> FC["Forecast Engine"]
+        INV --> NOTIF["Stock Alerts & Notifications"]
     end
 
-    CAT -->|categorizes| PROD
-    SUP -->|supplies| PROD
-    CUST -->|places| SALE
-    USR -->|records| SALE
-    USR -->|logs movements| INV
-    USR -->|receives| NOTIF
-
-    SALE -->|contains| ITEM
-    PROD -->|item reference| ITEM
-    PROD -->|stock tracking| INV
-    PROD -->|historical trend| FC
+    U --> Master
+    U --> SALE
+    CUST --> SALE
 ```
 
 ### Core Entities & Relations
