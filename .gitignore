@@ -1,5 +1,19 @@
+<<<<<<< HEAD
 __pycache__/
 *.pyc
 venv/
 .env
 database/forecastinq.db
+=======
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+!.env.example
+*.db
+.vscode/
+.idea/
+>>>>>>> origin/main

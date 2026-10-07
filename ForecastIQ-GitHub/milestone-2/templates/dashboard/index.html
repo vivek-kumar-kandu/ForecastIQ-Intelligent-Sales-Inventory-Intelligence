@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-4">
+    {% for label, value, icon, color, icon_bg, sub in cards %}
+    <div class="col-6 col-md-4 col-xl-3">
+        <div class="stat-card" style="--card-color:{{ color }}; --card-icon-bg:{{ icon_bg }}">
+            <div class="stat-card-icon"><i class="bi {{ icon }}" style="color:{{ color }}"></i></div>
+            <div class="stat-card-value">{{ value }}</div>
+            <div class="stat-card-label">{{ label }}</div>
+            <div class="stat-card-trend">{{ sub }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="chart-card">
+            <div class="chart-card-header">
+                <span class="chart-card-title">📈 Sales Trend (Last 6 Months)</span>
+                <span class="badge bg-primary-subtle text-primary">Monthly</span>
+            </div>
+            <div class="chart-card-body"><div style="height:280px"><canvas id="salesTrendChart"></canvas></div></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="chart-card h-100">
+            <div class="chart-card-header">
+                <span class="chart-card-title">🗂️ Inventory Status</span>
+            </div>
+            <div class="chart-card-body d-flex align-items-center justify-content-center">
+                <div style="height:240px;width:100%"><canvas id="inventoryDonut"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="chart-card">
+            <div class="chart-card-header"><span class="chart-card-title">🏷️ Category Revenue</span></div>
+            <div class="chart-card-body"><div style="height:240px"><canvas id="categoryChart"></canvas></div></div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="table-card">
+            <div class="table-card-header">
+                <span class="table-card-title">🏆 Top Products</span>
+                {% if 'products' in enabled %}<a href="{{ url_for('products.index') }}" class="btn btn-sm btn-outline-primary">View All</a>{% endif %}
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead><tr><th>Product</th><th>Stock</th><th>Sold</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for p in top_products %}
+                    <tr>
+                        <td class="fw-600" style="max-width:160px;">{{ p.name }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span>{{ p.stock_quantity }}</span>
+                                <div class="stock-bar flex-grow-1" style="min-width:60px;">
+                                    <div class="stock-fill" data-pct="{{ p.pct }}" style="background:{{ p.bar_color }}; width:0%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ p.sold }}</td>
+                        <td><span class="badge-status {{ p.status_cls }}">{{ p.status_label }}</span></td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales -->
+<div class="table-card">
+    <div class="table-card-header">
+        <span class="table-card-title">🛒 Recent Sales</span>
+        {% if 'sales' in enabled %}<a href="{{ url_for('sales.index') }}" class="btn btn-sm btn-outline-primary">View All</a>{% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Sale Code</th><th>Customer</th><th>Amount</th><th>Payment</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for s in recent_sales %}
+            <tr>
+                <td><code>{{ s.sale_code }}</code></td>
+                <td>{{ s.customer_name or 'Walk-in' }}</td>
+                <td class="fw-600 text-primary-custom">{{ fmt_currency(s.grand_total) }}</td>
+                <td>{{ s.payment_method|capitalize }}</td>
+                <td>{{ fmt_date(s.sale_date) }}</td>
+                <td><span class="badge-status badge-{{ s.status }}">{{ s.status|capitalize }}</span></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const c = getChartColors();
+
+    buildLineChart(
+        document.getElementById('salesTrendChart'),
+        {{ chart_data.trend_labels|safe }},
+        [{
+            label: 'Revenue (₹)',
+            data: {{ chart_data.trend_values|safe }},
+            borderColor: c.primary,
+            backgroundColor: 'rgba(79,70,229,0.08)',
+            fill: true, tension: 0.4,
+            pointBackgroundColor: c.primary, pointRadius: 5,
+        }]
+    );
+
+    buildDoughnutChart(
+        document.getElementById('inventoryDonut'),
+        ['In Stock','Low Stock','Critical','Out of Stock'],
+        {{ chart_data.inv_values|safe }},
+        [c.success, c.warning, c.danger, '#94a3b8']
+    );
+
+    buildBarChart(
+        document.getElementById('categoryChart'),
+        {{ chart_data.cat_labels|safe }},
+        [{
+            label: 'Revenue (₹)',
+            data: {{ chart_data.cat_values|safe }},
+            backgroundColor: [c.primary, c.accent, c.success, c.warning, c.danger],
+            borderRadius: 6,
+        }]
+    );
+});
+</script>
+{% endblock %}

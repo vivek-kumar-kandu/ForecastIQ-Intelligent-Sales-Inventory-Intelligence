@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Report Controls -->
+<div class="form-card mb-4">
+    <form class="row g-3 align-items-end" method="GET">
+        <div class="col-md-3">
+            <label class="form-label">Report Type</label>
+            <select name="type" class="form-select">
+                <option value="sales" {{ 'selected' if type=='sales' else '' }}>Sales Report</option>
+                <option value="inventory" {{ 'selected' if type=='inventory' else '' }}>Inventory Report</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">From Date</label>
+            <input type="date" name="from" value="{{ from_ }}" class="form-control"/>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">To Date</label>
+            <input type="date" name="to" value="{{ to_ }}" class="form-control"/>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">Generate</button>
+            <a href="{{ url_for('reports.export') }}?type={{ type }}&from={{ from_ }}&to={{ to_ }}" class="btn btn-outline-secondary">
+                <i class="bi bi-download"></i> CSV
+            </a>
+        </div>
+    </form>
+</div>
+
+{% if type == 'sales' %}
+<!-- Sales Report -->
+<div class="row g-3 mb-4">
+    {% set cards = [
+        ('Total Orders', 'bi-receipt', sales_summary.orders, '#4f46e5'),
+        ('Total Revenue', 'bi-cash-coin', fmt_currency(sales_summary.revenue), '#10b981'),
+        ('Total Discount', 'bi-tag-fill', fmt_currency(sales_summary.discount), '#f59e0b'),
+        ('Avg Order Value', 'bi-graph-up', fmt_currency(avg_order), '#06b6d4'),
+    ] %}
+    {% for l, i, v, c in cards %}
+    <div class="col-6 col-md-3">
+        <div class="stat-card" style="--card-color:{{ c }};--card-icon-bg:{{ c }}22">
+            <div class="stat-card-icon"><i class="bi {{ i }}" style="color:{{ c }}"></i></div>
+            <div class="stat-card-value" style="font-size:20px;">{{ v }}</div>
+            <div class="stat-card-label">{{ l }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="chart-card">
+            <div class="chart-card-header"><span class="chart-card-title">Daily Revenue Trend</span></div>
+            <div class="chart-card-body"><div style="height:280px"><canvas id="revenueChart"></canvas></div></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="table-card">
+            <div class="table-card-header"><span class="table-card-title">🏆 Top Products</span></div>
+            <table class="table">
+                <thead><tr><th>Product</th><th>Qty</th><th>Revenue</th></tr></thead>
+                <tbody>
+                {% for tp in top_products %}
+                <tr>
+                    <td style="font-size:12px;">{{ tp.name[:18] }}</td>
+                    <td>{{ tp.qty_sold }}</td>
+                    <td>{{ fmt_currency(tp.revenue) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header"><span class="table-card-title">📋 Daily Sales Breakdown</span></div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Date</th><th>Orders</th><th>Revenue</th><th>Discounts</th></tr></thead>
+            <tbody>
+            {% if not sales_data %}
+            <tr><td colspan="4"><div class="empty-state"><i class="bi bi-bar-chart"></i><p>No data for selected period.</p></div></td></tr>
+            {% else %}
+            {% for row in sales_data %}
+            <tr>
+                <td>{{ row.label }}</td>
+                <td>{{ row.orders }}</td>
+                <td class="fw-700">{{ fmt_currency(row.revenue) }}</td>
+                <td class="text-danger">-{{ fmt_currency(row.total_discount) }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<!-- Inventory Report -->
+<div class="row g-3 mb-4">
+    {% set cards = [
+        ('Total Products', 'bi-box-seam-fill', inv_summary.total, '#4f46e5'),
+        ('Total Value', 'bi-archive-fill', fmt_currency(inv_summary.total_value), '#10b981'),
+        ('Low Stock', 'bi-exclamation-triangle-fill', low_count, '#f59e0b'),
+        ('Out of Stock', 'bi-x-circle-fill', out_count, '#ef4444'),
+    ] %}
+    {% for l, i, v, c in cards %}
+    <div class="col-6 col-md-3">
+        <div class="stat-card" style="--card-color:{{ c }};--card-icon-bg:{{ c }}22">
+            <div class="stat-card-icon"><i class="bi {{ i }}" style="color:{{ c }}"></i></div>
+            <div class="stat-card-value" style="font-size:20px;">{{ v }}</div>
+            <div class="stat-card-label">{{ l }}</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="table-card">
+    <div class="table-card-header"><span class="table-card-title">📦 Inventory Report</span></div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Stock</th><th>Cost Price</th><th>Sell Price</th><th>Inv. Value</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for row in inventory_report %}
+            {% set cls = 'badge-out-stock' if row.stock_status == 'Out of Stock' else ('badge-low-stock' if row.stock_status == 'Low Stock' else 'badge-in-stock') %}
+            <tr>
+                <td><code>{{ row.product_code }}</code></td>
+                <td class="fw-600">{{ row.name }}</td>
+                <td>{{ row.category or '—' }}</td>
+                <td class="fw-700">{{ row.stock_quantity }}</td>
+                <td>{{ fmt_currency(row.cost_price) }}</td>
+                <td>{{ fmt_currency(row.selling_price) }}</td>
+                <td class="fw-700">{{ fmt_currency(row.inv_value) }}</td>
+                <td><span class="badge-status {{ cls }}">{{ row.stock_status }}</span></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById('revenueChart');
+    if (ctx) {
+        buildBarChart(ctx, {{ revenue_labels|safe }}, [{
+            label: 'Revenue (₹)', data: {{ revenue_values|safe }},
+            backgroundColor: '#4f46e5', borderRadius: 6,
+        }]);
+    }
+});
+</script>
+{% endblock %}

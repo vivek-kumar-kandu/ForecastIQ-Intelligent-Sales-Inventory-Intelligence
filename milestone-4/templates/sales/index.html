@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <form class="d-flex gap-2 align-items-center flex-wrap" method="GET">
+        <input type="date" name="from" value="{{ date_from }}" class="form-control" style="width:150px;"/>
+        <span class="text-muted">to</span>
+        <input type="date" name="to" value="{{ date_to }}" class="form-control" style="width:150px;"/>
+        <button type="submit" class="btn btn-outline-primary">Filter</button>
+    </form>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSaleModal">
+        <i class="bi bi-plus-lg me-1"></i>New Sale
+    </button>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-card" style="--card-color:#10b981;--card-icon-bg:rgba(16,185,129,0.1)">
+            <div class="stat-card-icon"><i class="bi bi-cash-coin" style="color:#10b981"></i></div>
+            <div class="stat-card-value">{{ fmt_currency(total_revenue) }}</div>
+            <div class="stat-card-label">Revenue (Selected Period)</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="--card-color:#4f46e5;--card-icon-bg:rgba(79,70,229,0.1)">
+            <div class="stat-card-icon"><i class="bi bi-receipt" style="color:#4f46e5"></i></div>
+            <div class="stat-card-value">{{ total_count }}</div>
+            <div class="stat-card-label">Total Orders</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="--card-color:#06b6d4;--card-icon-bg:rgba(6,182,212,0.1)">
+            <div class="stat-card-icon"><i class="bi bi-bar-chart-fill" style="color:#06b6d4"></i></div>
+            <div class="stat-card-value">{{ fmt_currency(avg_order) }}</div>
+            <div class="stat-card-label">Avg Order Value</div>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-card-header">
+        <span class="table-card-title">🛒 Sales History</span>
+        <a href="{{ url_for('reports.export') }}?type=sales&from={{ date_from }}&to={{ date_to }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Code</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Staff</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>
+            {% if not sales %}
+            <tr><td colspan="8"><div class="empty-state"><i class="bi bi-receipt"></i><p>No sales found for selected period.</p></div></td></tr>
+            {% else %}
+            {% for s in sales %}
+            <tr>
+                <td><code>{{ s.sale_code }}</code></td>
+                <td>{{ s.customer_name or 'Walk-in' }}</td>
+                <td>{{ s.item_count }} item(s)</td>
+                <td class="fw-700">{{ fmt_currency(s.grand_total) }}</td>
+                <td><span class="badge bg-secondary-subtle text-secondary">{{ s.payment_method|capitalize }}</span></td>
+                <td>{{ s.staff_name or '—' }}</td>
+                <td>{{ fmt_date(s.sale_date) }}</td>
+                <td><span class="badge-status badge-{{ s.status }}">{{ s.status|capitalize }}</span></td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% if total_pages > 1 %}
+    <div class="d-flex justify-content-center py-3">
+        <nav><ul class="pagination mb-0">
+        {% for i in range(1, total_pages + 1) %}
+        <li class="page-item {{ 'active' if i==page else '' }}">
+            <a class="page-link" href="?page={{ i }}&from={{ date_from }}&to={{ date_to }}">{{ i }}</a>
+        </li>
+        {% endfor %}
+        </ul></nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- New Sale Modal -->
+<div class="modal fade" id="newSaleModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">New Sale</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="POST">
+        <div class="modal-body">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label">Customer</label>
+              <select name="customer_id" class="form-select">
+                <option value="">Walk-in Customer</option>
+                {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Sale Date</label>
+              <input type="date" name="sale_date" class="form-control" value="{{ date_to }}"/>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Discount (₹)</label>
+              <input type="number" step="0.01" name="discount" id="discountInput" class="form-control" value="0" min="0" onchange="calcTotal()"/>
+            </div>
+            <div class="col-md-2">
+              <label class="form-label">Tax (₹)</label>
+              <input type="number" step="0.01" name="tax" id="taxInput" class="form-control" value="0" min="0" onchange="calcTotal()"/>
+            </div>
+            <div class="col-md-1">
+              <label class="form-label">Payment</label>
+              <select name="payment_method" class="form-select">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="online">Online</option>
+                <option value="upi">UPI</option>
+              </select>
+            </div>
+          </div>
+
+          <h6 class="fw-700 mb-3">Products</h6>
+          <div id="itemsContainer">
+            <div class="row g-2 mb-2 item-row align-items-end">
+              <div class="col-md-6">
+                <label class="form-label">Product</label>
+                <select name="product_ids[]" class="form-select product-select" onchange="fillPrice(this)">
+                  <option value="">— Select Product —</option>
+                  {% for p in products %}
+                  <option value="{{ p.id }}" data-price="{{ p.selling_price }}" data-stock="{{ p.stock_quantity }}">
+                    {{ p.name }} (Stock: {{ p.stock_quantity }})
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Qty</label>
+                <input type="number" name="quantities[]" class="form-control qty-input" value="1" min="1" onchange="calcTotal()"/>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Unit Price (₹)</label>
+                <input type="number" step="0.01" name="prices[]" class="form-control price-input" value="0" onchange="calcTotal()"/>
+              </div>
+              <div class="col-md-1">
+                <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addRow()">
+            <i class="bi bi-plus me-1"></i>Add Product
+          </button>
+
+          <div class="mt-4 p-3 rounded-3" style="background:var(--surface-2);">
+            <div class="d-flex justify-content-between mb-1"><span>Subtotal:</span><strong id="subtotalDisplay">₹0.00</strong></div>
+            <div class="d-flex justify-content-between mb-1 text-danger"><span>Discount:</span><strong id="discountDisplay">-₹0.00</strong></div>
+            <div class="d-flex justify-content-between mb-1 text-info"><span>Tax:</span><strong id="taxDisplay">+₹0.00</strong></div>
+            <hr style="border-color:var(--border)"/>
+            <div class="d-flex justify-content-between"><span class="fw-700 fs-6">Grand Total:</span><strong class="fs-5 text-primary-custom" id="grandTotalDisplay">₹0.00</strong></div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Optional notes…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Record Sale</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const productsData = {{ products_json|safe }};
+
+function fillPrice(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const row = sel.closest('.item-row');
+    row.querySelector('.price-input').value = opt.dataset.price || 0;
+    calcTotal();
+}
+
+function calcTotal() {
+    let sub = 0;
+    document.querySelectorAll('.item-row').forEach(row => {
+        const qty = parseFloat(row.querySelector('.qty-input')?.value || 0);
+        const price = parseFloat(row.querySelector('.price-input')?.value || 0);
+        sub += qty * price;
+    });
+    const disc = parseFloat(document.getElementById('discountInput')?.value || 0);
+    const tax  = parseFloat(document.getElementById('taxInput')?.value || 0);
+    const grand = sub - disc + tax;
+    document.getElementById('subtotalDisplay').textContent = '₹' + sub.toFixed(2);
+    document.getElementById('discountDisplay').textContent = '-₹' + disc.toFixed(2);
+    document.getElementById('taxDisplay').textContent = '+₹' + tax.toFixed(2);
+    document.getElementById('grandTotalDisplay').textContent = '₹' + grand.toFixed(2);
+}
+
+function addRow() {
+    const container = document.getElementById('itemsContainer');
+    const first = container.querySelector('.item-row');
+    const clone = first.cloneNode(true);
+    clone.querySelectorAll('input').forEach(i => i.value = i.type === 'number' ? (i.classList.contains('qty-input') ? 1 : 0) : '');
+    clone.querySelector('select').selectedIndex = 0;
+    clone.querySelector('.price-input').value = 0;
+    container.appendChild(clone);
+}
+
+function removeRow(btn) {
+    const rows = document.querySelectorAll('.item-row');
+    if (rows.length > 1) { btn.closest('.item-row').remove(); calcTotal(); }
+}
+</script>
+{% endblock %}
