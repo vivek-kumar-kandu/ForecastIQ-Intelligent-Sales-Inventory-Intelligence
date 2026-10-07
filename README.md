@@ -243,53 +243,24 @@ The pre-seeded database includes three ready-to-use accounts with different acce
 
 ---
 
-## 🗄️ Database Architecture
+## 🗄️ Database Architecture & Relational Schema
 
-The SQLite relational schema (`database/schema.sql`) utilizes standard foreign keys and constraints:
+The SQLite relational database (`database/forecastinq.db`) is structured with standard third-normal form normalization, foreign key integrity (`PRAGMA foreign_keys = ON`), cascade lifecycle policies, and strict `CHECK` constraints defined in `database/schema.sql`:
 
-```mermaid
-flowchart TD
-    subgraph Users ["👥 User Access"]
-        U["Admin / Manager / Staff"]
-    end
-
-    subgraph Master ["📦 Master Catalog & Customers"]
-        CAT["Categories"] --> PROD["Products Catalog"]
-        SUP["Suppliers"] --> PROD
-        CUST["Customers"]
-    end
-
-    subgraph Transactions ["🛒 Point of Sale & Stock Ledger"]
-        SALE["Sales Orders"] --> ITEMS["Sales Line Items"]
-        PROD --> ITEMS
-        PROD <--> INV["Inventory Movements"]
-    end
-
-    subgraph Analytics ["📈 Intelligence & Alerts"]
-        PROD --> FC["Forecast Engine"]
-        INV --> NOTIF["Stock Alerts & Notifications"]
-    end
-
-    U --> Master
-    U --> SALE
-    CUST --> SALE
-```
-
-### Core Entities & Relations
-
-| Table | Primary Role | Key Foreign Relationships |
-| :--- | :--- | :--- |
-| **`users`** | Authentication, roles (`admin`, `manager`, `staff`), and access status | Referenced by `sales`, `inventory`, `notifications` |
-| **`products`** | SKU, pricing margins, current stock, and safety reorder levels | `category_id` → `categories`, `supplier_id` → `suppliers` |
-| **`categories`**| Product classification taxonomy | Parent of `products` |
-| **`suppliers`** | Vendor profiles, contact records, and active catalogue counts | Associated with `products` |
-| **`customers`** | Customer directory and real-time lifetime purchase volume | Associated with `sales` |
-| **`sales`** | Transaction headers, discounts, taxes, totals, and payment modes | `customer_id` → `customers`, `user_id` → `users` |
-| **`sales_items`**| Individual line items within each transaction | `sale_id` → `sales`, `product_id` → `products` |
-| **`inventory`** | Audit ledger for stock movements (`in`, `out`, `adjustment`) | `product_id` → `products`, `moved_by` → `users` |
-| **`forecasts`** | Algorithmic prediction outputs, target dates, and confidence scores | `product_id` → `products`, `generated_by` → `users` |
-| **`notifications`**| In-app alert queue for low stock, targets, and system notices | `user_id` → `users` |
-| **`settings`** | Store configuration, base currency (`₹`), and tax thresholds | Global key-value store |
+| Module / Domain | Table Name | Primary Key | Foreign Relationships | Key Attributes | Integrity Rules & Business Logic |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Identity & Access** | **`users`** | `id` (AUTO) | None | `full_name`, `email`, `username`, `phone`, `password_hash`, `role`, `status` | `email` & `username` UNIQUE; `CHECK(role IN ('admin','manager','staff'))`; `CHECK(status IN ('active','inactive'))` |
+| **Catalog Master** | **`categories`** | `id` (AUTO) | None | `name`, `description` | Parent taxonomy classification for product catalog |
+| **Catalog Master** | **`suppliers`** | `id` (AUTO) | None | `supplier_code`, `name`, `email`, `phone`, `address`, `city`, `country`, `status` | `supplier_code` UNIQUE (e.g. `SUP001`); Active/inactive vendor directory |
+| **Catalog Master** | **`products`** | `id` (AUTO) | `category_id` → `categories.id` *(SET NULL)*<br>`supplier_id` → `suppliers.id` *(SET NULL)* | `product_code`, `name`, `brand`, `cost_price`, `selling_price`, `stock_quantity`, `min_stock_level`, `reorder_quantity` | `product_code` UNIQUE (e.g. `PRD001`); Tracks profit margins, automated reorder triggers, and safety stock levels |
+| **Customer Master** | **`customers`** | `id` (AUTO) | None | `customer_code`, `name`, `email`, `phone`, `address`, `city`, `total_purchases` | `customer_code` UNIQUE (e.g. `CUST001`); Real-time cumulative order volume and lifetime spend tracking |
+| **Sales & POS** | **`sales`** | `id` (AUTO) | `customer_id` → `customers.id` *(SET NULL)*<br>`user_id` → `users.id` *(SET NULL)* | `sale_code`, `total_amount`, `discount`, `tax`, `grand_total`, `payment_method`, `status`, `sale_date` | `sale_code` UNIQUE (`SALE-YYYY-XXXX`); `CHECK(payment_method IN ('cash','card','online','upi'))`; `CHECK(status IN ('completed','pending','cancelled'))` |
+| **Sales & POS** | **`sales_items`** | `id` (AUTO) | `sale_id` → `sales.id` *(CASCADE)*<br>`product_id` → `products.id` *(CASCADE)* | `quantity`, `unit_price`, `total_price` | Multi-line checkout items; Deleting a sale cascades items; Triggers automated inventory deduction |
+| **Inventory Ledger** | **`inventory`** | `id` (AUTO) | `product_id` → `products.id` *(CASCADE)*<br>`moved_by` → `users.id` *(SET NULL)* | `movement_type`, `quantity`, `reference`, `notes`, `created_at` | `CHECK(movement_type IN ('in','out','adjustment'))`; Immutable audit trail for warehouse inward, sales outward, and stock calibrations |
+| **Predictive Analytics** | **`forecasts`** | `id` (AUTO) | `product_id` → `products.id` *(SET NULL)*<br>`generated_by` → `users.id` *(SET NULL)* | `forecast_type`, `algorithm`, `forecast_date`, `predicted_sales`, `actual_sales`, `confidence_score` | `CHECK(forecast_type IN ('weekly','monthly','quarterly','yearly'))`; `CHECK(algorithm IN ('linear_regression','moving_average','exponential_smoothing'))` |
+| **Alerts & Operations**| **`notifications`**| `id` (AUTO) | `user_id` → `users.id` *(CASCADE)* | `type`, `title`, `message`, `is_read`, `created_at` | `CHECK(type IN ('low_stock','out_of_stock','forecast','sales_target','system'))`; In-app alert queue with unread badge counter |
+| **Analytics Archive** | **`reports`** | `id` (AUTO) | `generated_by` → `users.id` *(SET NULL)* | `report_type`, `parameters`, `file_path`, `created_at` | Historical CSV export registry with date-range filter parameter tracking |
+| **Store Configuration**| **`settings`** | `id` (AUTO) | None | `setting_key`, `setting_value`, `updated_at` | `setting_key` UNIQUE; Admin-controlled store metadata, default currency (`₹`), tax rates, and safety thresholds |
 
 ---
 
