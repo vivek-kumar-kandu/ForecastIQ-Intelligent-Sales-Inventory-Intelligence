@@ -1,188 +1,330 @@
-<<<<<<< HEAD
-# ForecastinQ (Python / Flask + SQLite Edition)
+# ForecastIQ — Intelligent Sales Forecasting & Inventory Intelligence Platform
 
-This is a full conversion of the original **ForecastinQ** PHP + MySQL
-inventory & sales-forecasting app to **Python (Flask) + SQLite**.
-All the original modules, pages, and functionality (dashboard, products,
-inventory, restocking, sales, customers, suppliers, forecasting, reports,
-notifications, settings, and user management) have been reproduced —
-same look & feel (Bootstrap 5 UI, charts, dark/light theme), same
-business logic (forecasting algorithms, stock alerts, CSV exports, etc.),
-now running on a Python backend with a SQLite database instead of PHP/MySQL.
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.3-000000?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Database](https://img.shields.io/badge/Database-SQLite3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952B3?logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
+[![Chart.js](https://img.shields.io/badge/Charts-Chart.js-FF6384?logo=chartdotjs&logoColor=white)](https://www.chartjs.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/vivek-kumar-kandu/ForecastIQ-Intelligent-Sales-Inventory-Intelligence/pulls)
 
-## Requirements
+> **ForecastIQ** is an end-to-end, AI-powered sales forecasting and inventory intelligence platform built with Python (Flask) and SQLite. It delivers predictive demand forecasting, automated reorder recommendations, real-time stock-out anomaly prevention, multi-item point-of-sale (POS) processing, and role-based access control.
 
-- Python 3.9 or newer
-- pip
+---
 
-No MySQL/XAMPP/Apache needed — SQLite is a single file, built into Python.
+## 📌 Table of Contents
 
-## 1. Install dependencies
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Forecasting Engine & Mathematics](#-forecasting-engine--mathematics)
+- [Repository Structure & Milestones](#-repository-structure--milestones)
+- [Quickstart & Local Installation](#-quickstart--local-installation)
+- [Demo Credentials](#-demo-credentials)
+- [Database Architecture](#-database-architecture)
+- [Application Blueprint Routes](#-application-blueprint-routes)
+- [Security & Production Readiness](#-security--production-readiness)
+- [Contributing & License](#-contributing--license)
 
-Open a terminal in this folder and run:
+---
 
+## 🚀 Overview
+
+ForecastIQ transforms raw transaction logs into actionable inventory insights. Designed with a clean **Application Factory** pattern and modular Flask blueprints, the system eliminates bulky external ML dependencies by implementing core time-series algorithms in optimized, native Python.
+
+Whether tracking fast-moving items, calculating optimal safety stock levels, or preventing costly over-stock and stock-out scenarios, ForecastIQ equips retail and supply chain teams with the exact tools needed to optimize working capital.
+
+---
+
+## ✨ Key Features
+
+### 📊 1. Executive Intelligence Dashboard
+- **Real-Time KPIs**: Total revenue, daily sales velocity, monthly turnover, total active SKUs, and inventory valuation calculated at cost basis.
+- **Interactive Visualizations**: 6-month historical revenue trend lines, product category share breakdowns, and real-time inventory health status gauges powered by Chart.js.
+- **Actionable Alerts**: Highlights out-of-stock items, critical thresholds, and low-stock warnings at a glance.
+
+### 📈 2. Triple-Algorithm Sales Forecasting Engine
+- **Moving Average (3-Period)**: Smooths short-term demand variations to reveal fundamental baseline trajectory.
+- **Exponential Smoothing ($\alpha = 0.3$)**: Employs geometric weight decay, giving higher relevance to recent sales surges.
+- **Linear Regression (OLS)**: Fits least-squares trend lines to project forward-looking growth or decline trends.
+- **Ensemble Model**: Blends all three methodologies to deliver a consensus projection with reduced model variance.
+- **Accuracy Confidence Scoring**: Computes dynamic confidence scores using Mean Absolute Percentage Error (MAPE):
+  $$\text{Confidence Score} = \max(0, 100 - \text{MAPE})$$
+- **SKU Demand Run-Out Projections**: Calculates expected monthly unit demand, stock coverage ratios, and restock urgency flags.
+
+### 📦 3. Inventory Management & Smart Restocking
+- **Color-Coded Status Tracking**: Dynamic badges for `In Stock`, `Low Stock`, `Critical` ($\le 5$ units), and `Out of Stock` ($0$ units).
+- **Movement Audit Ledger**: Complete historical tracking of stock adjustments (`in`, `out`, and `adjustment`) with user attribution and timestamping.
+- **Intelligent Restocking Workbench**: Suggests reorder quantities based on recent 30-day sales run rates:
+  $$\text{Suggested Reorder} = \max(\text{reorder\_quantity}, \text{round}(\text{avg\_monthly\_sales} \times 2))$$
+- **Capital Requirement Estimates**: Automatically computes the purchase cost required to restock each low-inventory SKU.
+
+### 🛒 4. Point of Sale (POS) & Sales Execution
+- **Multi-Line Item Checkout**: Dynamic client-side order builder supporting multi-product cart additions with instant subtotal and tax calculation.
+- **Automatic Stock Deduction**: Automatically deducts quantities from the warehouse and records movement audit entries upon checkout completion.
+- **Customer Lifetime Value Tracking**: Updates customer purchase totals in real-time.
+- **Flexible Payment Methods**: Full support for Cash, Card, UPI, and Online payments.
+
+### 👥 5. Master Data Management
+- **Products**: Manage product SKU code, name, category, brand, supplier, cost price, selling price, safety stock levels, and reorder units.
+- **Customers**: Directory of customer contact details, addresses, and cumulative order metrics.
+- **Suppliers**: Vendor database with active catalog counts and direct supplier contact info.
+- **Categories**: Dynamic category groupings with revenue contribution tracking.
+
+### 📑 6. Reports & Instant CSV Data Export
+- Comprehensive date-filtered sales summaries, order totals, and discount breakdowns.
+- Inventory valuation reports with stock levels and total asset value.
+- High-speed streaming CSV data exports for:
+  - `sales_YYYYMMDD.csv`
+  - `inventory_YYYYMMDD.csv`
+  - `products_YYYYMMDD.csv`
+
+### 🛡️ 7. Security & Role-Based Access Control (RBAC)
+- Three permission levels:
+  - **Admin**: Full access including user provisioning, password resets, and system configuration.
+  - **Manager**: Operations, inventory, restock orders, sales, forecasting, and analytics.
+  - **Staff**: POS checkout, product lookup, and customer directory access.
+- Secure password hashing via Werkzeug (`scrypt` / `pbkdf2`).
+- Custom CSRF protection on all state-altering POST requests.
+- Brute-force throttling delays on failed authentication attempts.
+
+---
+
+## 🧮 Forecasting Engine & Mathematics
+
+ForecastIQ implements time-series models from scratch in `utils.py` without external ML dependencies:
+
+| Algorithm | Formulation | Description |
+| :--- | :--- | :--- |
+| **Simple Moving Average** | $\hat{y}_{t+1} = \frac{1}{k} \sum_{i=0}^{k-1} y_{t-i}$ | Averages the last $k=3$ periods to eliminate noise. |
+| **Exponential Smoothing** | $S_t = \alpha \cdot y_t + (1 - \alpha) \cdot S_{t-1}$ | Applies decay constant $\alpha = 0.3$ prioritizing recent demand. |
+| **Linear Regression** | $\hat{y} = mx + b \quad \text{where } m = \frac{n\sum xy - \sum x \sum y}{n\sum x^2 - (\sum x)^2}$ | Ordinary Least Squares trend line projected to period $n+1$. |
+| **Ensemble Model** | $\hat{y}_{\text{ensemble}} = \frac{\hat{y}_{\text{MA}} + \hat{y}_{\text{ES}} + \hat{y}_{\text{LR}}}{3}$ | Combines predictions into a resilient consensus forecast. |
+| **Confidence Metric** | $\text{Confidence} = 100 - \left( \frac{100}{n} \sum \left\| \frac{y_i - \hat{y}_i}{y_i} \right\| \right)$ | Backtests predictions against actuals using MAPE. |
+
+---
+
+## 📂 Repository Structure & Milestones
+
+The repository offers both the **complete integrated production application** and an **incremental milestone curriculum**:
+
+```text
+ForecastIQ/
+├── ForecastIQ-Complete/       # Complete production application (all modules integrated)
+├── milestone-4/               # Milestone 4: Complete app with Forecasting & Administration
+├── milestone-3/               # Milestone 3: Sales, Notifications, and CSV Reports
+├── milestone-2/               # Milestone 2: Products, Inventory, Customers & Suppliers
+├── milestone-1/               # Milestone 1: Authentication & Dashboard Foundation
+├── ForecastIQ-GitHub/         # Historical milestone archive
+├── README.md                  # Project documentation & guides
+└── .gitignore                 # Repository ignore rules
+```
+
+### Module Breakdown (Inside `milestone-4/` or `ForecastIQ-Complete/`)
+
+```text
+├── app.py                     # Flask application factory and context processors
+├── config.py                  # Environment and database configuration
+├── db.py                      # SQLite connection pooling & query abstractions
+├── init_db.py                 # Schema migration & rolling 6-month seed generator
+├── requirements.txt           # Minimal dependencies (Flask 3.0.3, Werkzeug 3.0.3)
+├── utils.py                   # Math algorithms, auth decorators, and formatters
+├── database/
+│   ├── schema.sql             # Full DDL schema with relational constraints
+│   └── forecastinq.db         # SQLite runtime database (generated by init_db.py)
+├── blueprints/
+│   ├── auth.py                # Login, registration, session termination
+│   ├── dashboard.py           # Metrics aggregation and Chart.js feeds
+│   ├── products.py            # Product catalog CRUD & threshold configurations
+│   ├── inventory.py           # Stock movements and automated restock logic
+│   ├── sales.py               # POS checkout and inventory deduction
+│   ├── forecasting.py         # Time-series forecasting and confidence scoring
+│   ├── reports.py             # Analytics reporting and CSV export streaming
+│   ├── customers.py           # Customer profiles and purchase volumes
+│   ├── suppliers.py           # Supplier registry and catalog links
+│   ├── notifications.py       # Notification dispatch and read-state management
+│   ├── settings.py            # Global company and store settings (Admin only)
+│   └── users.py               # User account administration (Admin only)
+├── templates/                 # Modular Jinja2 HTML templates
+└── static/
+    ├── css/app.css            # Responsive custom styles and theme variables
+    └── js/app.js              # Sidebar toggle, dark mode, Chart.js renderers
+```
+
+---
+
+## 💻 Quickstart & Local Installation
+
+### Prerequisites
+- **Python 3.9+**
+- **pip**
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/vivek-kumar-kandu/ForecastIQ-Intelligent-Sales-Inventory-Intelligence.git
+cd ForecastIQ-Intelligent-Sales-Inventory-Intelligence
+```
+
+### 2. Navigate to the Complete App (or Desired Milestone)
+```bash
+cd milestone-4
+# Alternatively: cd ForecastIQ-Complete
+```
+
+### 3. Create & Activate a Virtual Environment
+
+**Windows (PowerShell):**
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 4. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-(If you use a virtual environment, create/activate it first:
-`python -m venv venv && source venv/bin/activate` on macOS/Linux, or
-`venv\Scripts\activate` on Windows.)
-
-## 2. Create the database
-
-This creates `database/forecastinq.db` and seeds it with the same demo
-data as the original project (users, categories, products, sample sales).
-
+### 5. Initialize & Seed the Database
 ```bash
 python init_db.py
 ```
+> **Note:** `init_db.py` creates the SQLite database and seeds 6 months of historical transactions relative to the current date so that all dashboard charts and forecasting models display immediate, meaningful data.
 
-Run this again any time you want to reset the database back to the
-original demo data (it will delete and recreate the .db file).
-
-## 3. Run the app
-
+### 6. Launch the Server
 ```bash
 python app.py
 ```
 
-Then open your browser at:
-
+Open your browser and navigate to:
 ```
 http://localhost:5000
 ```
 
-## Demo login credentials
+---
 
-| Username  | Password   | Role    |
-|-----------|-----------|---------|
-| admin     | Admin@123 | admin   |
-| manager   | Admin@123 | manager |
-| staff     | Admin@123 | staff   |
+## 🔑 Demo Credentials
 
-(You can also register a new account from the login screen.)
+The pre-seeded database includes three ready-to-use accounts with different access tiers:
 
-## Project structure
+| Username | Role | Password | Access Privileges |
+| :--- | :--- | :--- | :--- |
+| **`admin`** | Administrator | `Admin@123` | Full access: Settings, User Management, Forecasting, Inventory, Sales, Reports |
+| **`manager`** | Store Manager | `Admin@123` | Operations access: Forecasting, Restocking, Products, Sales, Reports |
+| **`staff`** | Sales Staff | `Admin@123` | Frontline access: POS Checkout, Product Catalog, Customer Directory |
 
-```
-ForecastinQ-Flask/
-├── app.py                 # Flask app factory / entry point
-├── config.py               # App configuration (paths, secret key, etc.)
-├── db.py                    # SQLite connection + query helpers
-├── utils.py                 # Auth, CSRF, formatting, forecasting algorithms
-├── init_db.py                # Creates & seeds the SQLite database
-├── requirements.txt
-├── database/
-│   ├── schema.sql            # SQLite schema (converted from the original MySQL schema)
-│   └── forecastinq.db        # The SQLite database file (created by init_db.py)
-├── blueprints/                # One Flask Blueprint per module (mirrors the original /modules folder)
-│   ├── auth.py                 (login / register / logout)
-│   ├── dashboard.py
-│   ├── products.py
-│   ├── inventory.py             (stock levels + restocking)
-│   ├── sales.py
-│   ├── customers.py
-│   ├── suppliers.py
-│   ├── forecasting.py            (moving average / exponential smoothing / linear regression)
-│   ├── reports.py                (sales & inventory reports + CSV export)
-│   ├── notifications.py
-│   ├── settings.py
-│   └── users.py                  (admin-only user management)
-├── templates/                 # Jinja2 templates (one folder per module, plus base.html)
-└── static/
-    ├── css/app.css             # Original stylesheet (unchanged)
-    ├── js/app.js                # Original JS (sidebar, theme toggle, Chart.js helpers — unchanged)
-    └── images/uploads/
-```
+*(New accounts can also be self-registered directly from the `/auth/register` page.)*
 
-## Notes on the conversion
+---
 
-- **Database**: MySQL `ENUM`/`AUTO_INCREMENT` types were converted to SQLite
-  `CHECK` constraints / `INTEGER PRIMARY KEY AUTOINCREMENT`. All tables,
-  relationships, and sample data are preserved.
-- **Passwords**: the original PHP demo hashes were bcrypt (PHP-specific).
-  `init_db.py` generates fresh Werkzeug password hashes for the same demo
-  accounts/password (`Admin@123`), so login works identically.
-- **Sessions/CSRF**: Flask's server-side session + a custom CSRF token
-  (matching the original hand-rolled PHP CSRF approach) are used instead
-  of PHP sessions.
-- **Front-end**: The Bootstrap 5 markup, custom CSS (`app.css`) and
-  JavaScript (`app.js`, including the Chart.js helper functions) are
-  reused unchanged — only the templating language changed from PHP to
-  Jinja2.
-- **Business logic**: all forecasting algorithms (moving average,
-  exponential smoothing, linear regression, confidence scoring), stock
-  adjustment logic, sale recording (with automatic inventory deduction),
-  and CSV report exports were ported line-for-line into Python.
+## 🗄️ Database Architecture
 
-## Resetting demo data
+The SQLite relational schema (`database/schema.sql`) utilizes standard foreign keys and constraints:
 
-```bash
-python init_db.py
-```
+```mermaid
+erDiagram
+    USERS ||--o{ SALES : "processes"
+    USERS ||--o{ INVENTORY : "logs"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    CATEGORIES ||--o{ PRODUCTS : "classifies"
+    SUPPLIERS ||--o{ PRODUCTS : "supplies"
+    CUSTOMERS ||--o{ SALES : "places"
+    PRODUCTS ||--o{ SALES_ITEMS : "included in"
+    PRODUCTS ||--o{ INVENTORY : "tracks"
+    SALES ||--|{ SALES_ITEMS : "contains"
+    PRODUCTS ||--o{ FORECASTS : "analyzed in"
 
-This wipes and recreates the database with the original seed data
-(useful after testing add/edit/delete operations).
-=======
-# ForecastIQ
+    USERS {
+        int id PK
+        string username UK
+        string email UK
+        string role "admin|manager|staff"
+        string status "active|inactive"
+    }
 
-![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-3.0.3-000000?logo=flask)
-![Database](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)
+    PRODUCTS {
+        int id PK
+        string product_code UK
+        string name
+        decimal cost_price
+        decimal selling_price
+        int stock_quantity
+        int min_stock_level
+        int reorder_quantity
+    }
 
-ForecastIQ is a sales forecasting and inventory management app built with Flask and SQLite. The repository follows the project through four milestones; **`milestone-4/` is the complete application** and the best place to start.
+    SALES {
+        int id PK
+        string sale_code UK
+        int customer_id FK
+        int user_id FK
+        decimal total_amount
+        decimal grand_total
+        string payment_method
+        date sale_date
+    }
 
-## Features
-
-- Dashboard with sales and inventory indicators
-- Product, customer, supplier, and inventory management
-- Multi-item sales with stock updates
-- Low-stock notifications and restocking views
-- Reports with CSV export
-- Sales forecasts using moving average, exponential smoothing, and linear regression, combined into an ensemble
-- Admin-only settings and user management
-- Login, role-based access, and seeded demo data
-
-## Run Locally
-
-Python 3 and pip are required. From the repository root:
-
-```powershell
-cd milestone-4
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python init_db.py
-python app.py
+    INVENTORY {
+        int id PK
+        int product_id FK
+        string movement_type "in|out|adjustment"
+        int quantity
+        string reference
+    }
 ```
 
-Open [http://localhost:5000](http://localhost:5000) in your browser. On macOS or Linux, activate the environment with `source .venv/bin/activate` instead.
+---
 
-> **Database reset:** `python init_db.py` recreates the SQLite database and removes any existing local data in that milestone. Run it for initial setup or when you intentionally want to reset the demo database.
+## 🌐 Application Blueprint Routes
 
-## Demo Accounts
+| Blueprint | Route Prefix | Primary Endpoints | Access Level |
+| :--- | :--- | :--- | :--- |
+| **Auth** | `/auth` | `/login`, `/register`, `/logout` | Public |
+| **Dashboard** | `/dashboard` | `/` (KPIs, Charts, Recent Activity) | Logged-in |
+| **Products** | `/products` | `/` (CRUD, Search, Filter by Category) | Logged-in |
+| **Inventory** | `/inventory` | `/` (Stock Ledger, Manual Adjustments), `/restocking` | Logged-in |
+| **Sales** | `/sales` | `/` (POS Multi-Item Checkout, Transaction History) | Logged-in |
+| **Forecasting**| `/forecasting` | `/` (Model Outputs, Ensemble Predictions, SKU Analysis) | Logged-in |
+| **Reports** | `/reports` | `/` (Sales & Inventory Summaries), `/export` (CSV) | Logged-in |
+| **Customers** | `/customers` | `/` (Customer List, Add, Edit, Delete) | Logged-in |
+| **Suppliers** | `/suppliers` | `/` (Supplier Directory, Product Associations) | Logged-in |
+| **Notifications**| `/notifications`| `/` (Alerts Feed, Mark All Read) | Logged-in |
+| **Settings** | `/settings` | `/` (Company Info, Tax Rate, Low Stock Thresholds) | **Admin Only** |
+| **Users** | `/users` | `/` (User Provisioning, Role Assignment, Deactivation)| **Admin Only** |
 
-The initialized database includes these local demo users:
+---
 
-| Username | Role | Password |
-| --- | --- | --- |
-| `admin` | Admin | `Admin@123` |
-| `manager` | Manager | `Admin@123` |
-| `staff` | Staff | `Admin@123` |
+## 🔒 Security & Production Readiness
 
-## Milestones
+- **Secret Key**: Set `SECRET_KEY` via environment variable in production environments.
+- **Database Backups**: As SQLite is a serverless single-file database (`forecastinq.db`), backup simply involves copying the database file during quiet periods or utilizing the SQLite backup API.
+- **CSRF Protection**: All POST endpoints validate session-bound CSRF tokens to block cross-site request forgery attacks.
+- **SQL Injection Prevention**: All queries in `db.py` use parameterized queries (`?` placeholders).
 
-| Folder | Includes |
-| --- | --- |
-| [`milestone-1/`](milestone-1/) | Authentication and dashboard foundations |
-| [`milestone-2/`](milestone-2/) | Products, inventory, customers, and suppliers |
-| [`milestone-3/`](milestone-3/) | Sales, notifications, reports, and CSV export |
-| [`milestone-4/`](milestone-4/) | Forecasting, admin settings, and user management |
+---
 
-Each milestone is a standalone Flask app with its own `requirements.txt` and SQLite schema. Run the setup commands from inside the milestone folder you want to explore. `ForecastIQ-GitHub/` contains an earlier copy of the first two milestones for comparison.
+## 🤝 Contributing
 
-## Security
+Contributions, feature requests, and improvements are welcome!
 
-This project is intended for local learning and demonstration. The demo accounts and development secret key are not suitable for deployment. Set a strong `SECRET_KEY` environment variable and review the app's debug settings before exposing it to a network.
->>>>>>> origin/main
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is open-source software licensed under the [MIT License](LICENSE).
+
+---
+
+<p align="center">
+  <b>Developed & Maintained by <a href="https://github.com/vivek-kumar-kandu">Vivek Kumar Kandu</a></b>
+</p>

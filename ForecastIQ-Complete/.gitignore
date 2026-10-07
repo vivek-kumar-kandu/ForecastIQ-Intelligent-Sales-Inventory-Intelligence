@@ -1,19 +1,22 @@
-<<<<<<< HEAD
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# Virtual environments
 venv/
-.env
-database/forecastinq.db
-=======
-venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+.venv/
+env/
+
+# Environment variables
 .env
 .env.*
 !.env.example
+
+# Database
 *.db
+database/forecastinq.db
+
+# IDE files
 .vscode/
 .idea/
->>>>>>> origin/main
