@@ -92,27 +92,36 @@ Whether tracking fast-moving items, calculating optimal safety stock levels, or 
 
 ## 🧮 Forecasting Engine & Mathematics
 
-ForecastIQ implements time-series models from scratch in `utils.py` without external ML dependencies:
+ForecastIQ implements time-series models from scratch in `utils.py` without external ML dependencies. The table below outlines each model, mathematical formulation, hyperparameter configuration, and operational characteristics:
 
-### 1. Simple Moving Average (3-Period)
-Smooths short-term fluctuations by averaging the $k=3$ most recent observed periods:
-$$\hat{y}_{t+1} = \frac{1}{k} \sum_{i=0}^{k-1} y_{t-i}$$
+| Model | Classification | Mathematical Formulation | Parameters & Tuning | Sensitivity & Dynamics | Best Suited For |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Simple Moving Average (SMA)** | Time-Series | $\hat{y}_{t+1} = \frac{y_t + y_{t-1} + y_{t-2}}{3}$ | Window $k = 3$ | Equal weights across trailing window; filters short-term transaction noise | Stable demand items with consistent replenishment run-rates |
+| **Exponential Smoothing (SES)** | Time-Series | $\hat{y}_{t+1} = \alpha y_t + (1 - \alpha) S_{t-1}$ | Alpha $\alpha = 0.3$ | Geometric decay; weights recent sales velocity over distant history | Fast-moving SKUs with seasonal shifts or promotional demand spikes |
+| **Linear Regression (OLS)** | Econometric | $\hat{y} = mx + b$ <br> $m = \frac{n\sum xy - \sum x \sum y}{n\sum x^2 - (\sum x)^2}$ | Slope $m$, Intercept $b$ | Extrapolates multi-month directional growth or contraction | Growing or declining product categories across 6–12 months |
+| **Ensemble Consensus** | Hybrid Meta-Model | $\hat{y}_{\text{final}} = \frac{\text{MA} + \text{ES} + \text{LR}}{3}$ | Equal weights ($w_i = \frac{1}{3}$) | Blends baseline, recency, and trend models to minimize prediction variance | Store-wide executive demand and revenue forecasting |
+| **Confidence Scoring** | Validation Metric | $\text{Score} = \max(0, 100 - \text{MAPE})$ | $\text{MAPE} = \frac{100}{n} \sum \frac{\text{abs}(y - \hat{y})}{y}$ | Trailing 6-month backtesting against actual closed transactions | Automated restock risk scoring and inventory safety buffer sizing |
 
-### 2. Exponential Smoothing ($\alpha = 0.3$)
-Employs geometric weight decay to give higher relevance to recent sales surges:
-$$S_t = \alpha \cdot y_t + (1 - \alpha) \cdot S_{t-1}$$
+### 🛠️ Algorithmic Implementation (`utils.py`)
 
-### 3. Linear Regression (OLS Trend Analysis)
-Fits an Ordinary Least Squares trend line to extrapolate trajectory into future periods:
-$$\hat{y} = mx + b \quad \text{where} \quad m = \frac{n\sum xy - \sum x \sum y}{n\sum x^2 - (\sum x)^2}, \quad b = \frac{\sum y - m\sum x}{n}$$
+```python
+# Moving Average: trailing k-period mean + 1-step forward extrapolation
+def moving_average(data, period=3):
+    return [round(sum(data[i-period+1:i+1]) / period, 2) for i in range(period-1, len(data))] + [round(sum(data[-period:]) / period, 2)]
 
-### 4. Ensemble Consensus Model
-Synthesizes all three independent algorithms into a balanced consensus estimate:
-$$\hat{y}_{\text{ensemble}} = \frac{\hat{y}_{\text{MA}} + \hat{y}_{\text{ES}} + \hat{y}_{\text{LR}}}{3}$$
+# Exponential Smoothing: recency-weighted geometric decay (alpha = 0.3)
+def exponential_smoothing(data, alpha=0.3):
+    res = [data[0]]
+    for x in data[1:]: res.append(round(alpha * x + (1 - alpha) * res[-1], 2))
+    return res + [round(alpha * res[-1] + (1 - alpha) * res[-1], 2)]
 
-### 5. Confidence Score (MAPE Backtesting)
-Calculates historical prediction accuracy against actual sales using Mean Absolute Percentage Error:
-$$\text{Confidence} = \max(0, \, 100 - \text{MAPE}) \quad \text{where} \quad \text{MAPE} = \frac{100}{n} \sum_{i=1}^{n} \left| \frac{y_i - \hat{y}_i}{y_i} \right|$$
+# Linear Regression: Ordinary Least Squares (OLS) slope & intercept
+def linear_regression(y):
+    n, x = len(y), list(range(1, len(y) + 1))
+    m = (n * sum(x[i]*y[i] for i in range(n)) - sum(x)*sum(y)) / ((n * sum(xi**2 for xi in x) - sum(x)**2) or 1)
+    b = (sum(y) - m * sum(x)) / n if n else 0
+    return {"slope": round(m, 4), "intercept": round(b, 4), "predicted": [round(m*xi + b, 2) for xi in range(1, n+2)]}
+```
 
 ---
 
