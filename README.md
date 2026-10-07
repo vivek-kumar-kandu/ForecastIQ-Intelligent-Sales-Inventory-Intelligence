@@ -44,7 +44,7 @@ Whether tracking fast-moving items, calculating optimal safety stock levels, or 
 
 ### 📈 2. Triple-Algorithm Sales Forecasting Engine
 - **Moving Average (3-Period)**: Smooths short-term demand variations to reveal fundamental baseline trajectory.
-- **Exponential Smoothing ($\alpha = 0.3$)**: Employs geometric weight decay, giving higher relevance to recent sales surges.
+- **Exponential Smoothing (α = 0.3)**: Employs geometric weight decay, giving higher relevance to recent sales surges.
 - **Linear Regression (OLS)**: Fits least-squares trend lines to project forward-looking growth or decline trends.
 - **Ensemble Model**: Blends all three methodologies to deliver a consensus projection with reduced model variance.
 - **Accuracy Confidence Scoring**: Computes dynamic confidence scores using Mean Absolute Percentage Error (MAPE):
@@ -52,10 +52,11 @@ Whether tracking fast-moving items, calculating optimal safety stock levels, or 
 - **SKU Demand Run-Out Projections**: Calculates expected monthly unit demand, stock coverage ratios, and restock urgency flags.
 
 ### 📦 3. Inventory Management & Smart Restocking
-- **Color-Coded Status Tracking**: Dynamic badges for `In Stock`, `Low Stock`, `Critical` ($\le 5$ units), and `Out of Stock` ($0$ units).
+- **Color-Coded Status Tracking**: Dynamic badges for `In Stock`, `Low Stock`, `Critical` (≤ 5 units), and `Out of Stock` (0 units).
 - **Movement Audit Ledger**: Complete historical tracking of stock adjustments (`in`, `out`, and `adjustment`) with user attribution and timestamping.
 - **Intelligent Restocking Workbench**: Suggests reorder quantities based on recent 30-day sales run rates:
-  $$\text{Suggested Reorder} = \max(\text{reorder\_quantity}, \text{round}(\text{avg\_monthly\_sales} \times 2))$$
+  $$\text{Suggested Reorder} = \max(\text{Reorder Quantity}, \text{round}(\text{Avg Monthly Sales} \times 2))$$
+  *(Implementation: `max(reorder_quantity, round(avg_monthly_sales * 2))`)*
 - **Capital Requirement Estimates**: Automatically computes the purchase cost required to restock each low-inventory SKU.
 
 ### 🛒 4. Point of Sale (POS) & Sales Execution
@@ -99,7 +100,7 @@ ForecastIQ implements time-series models from scratch in `utils.py` without exte
 | **Exponential Smoothing** | $S_t = \alpha \cdot y_t + (1 - \alpha) \cdot S_{t-1}$ | Applies decay constant $\alpha = 0.3$ prioritizing recent demand. |
 | **Linear Regression** | $\hat{y} = mx + b \quad \text{where } m = \frac{n\sum xy - \sum x \sum y}{n\sum x^2 - (\sum x)^2}$ | Ordinary Least Squares trend line projected to period $n+1$. |
 | **Ensemble Model** | $\hat{y}_{\text{ensemble}} = \frac{\hat{y}_{\text{MA}} + \hat{y}_{\text{ES}} + \hat{y}_{\text{LR}}}{3}$ | Combines predictions into a resilient consensus forecast. |
-| **Confidence Metric** | $\text{Confidence} = 100 - \left( \frac{100}{n} \sum \left\| \frac{y_i - \hat{y}_i}{y_i} \right\| \right)$ | Backtests predictions against actuals using MAPE. |
+| **Confidence Metric** | $\text{Confidence} = \max(0, 100 - \text{MAPE})$ | Backtests accuracy against historical actuals using MAPE percentage error. |
 
 ---
 
@@ -265,15 +266,15 @@ flowchart LR
 | Table | Primary Role | Key Foreign Relationships |
 | :--- | :--- | :--- |
 | **`users`** | Authentication, roles (`admin`, `manager`, `staff`), and access status | Referenced by `sales`, `inventory`, `notifications` |
-| **`products`** | SKU, pricing margins, current stock, and safety reorder levels | `category_id` $\to$ `categories`, `supplier_id` $\to$ `suppliers` |
+| **`products`** | SKU, pricing margins, current stock, and safety reorder levels | `category_id` → `categories`, `supplier_id` → `suppliers` |
 | **`categories`**| Product classification taxonomy | Parent of `products` |
 | **`suppliers`** | Vendor profiles, contact records, and active catalogue counts | Associated with `products` |
 | **`customers`** | Customer directory and real-time lifetime purchase volume | Associated with `sales` |
-| **`sales`** | Transaction headers, discounts, taxes, totals, and payment modes | `customer_id` $\to$ `customers`, `user_id` $\to$ `users` |
-| **`sales_items`**| Individual line items within each transaction | `sale_id` $\to$ `sales`, `product_id` $\to$ `products` |
-| **`inventory`** | Audit ledger for stock movements (`in`, `out`, `adjustment`) | `product_id` $\to$ `products`, `moved_by` $\to$ `users` |
-| **`forecasts`** | Algorithmic prediction outputs, target dates, and confidence scores | `product_id` $\to$ `products`, `generated_by` $\to$ `users` |
-| **`notifications`**| In-app alert queue for low stock, targets, and system notices | `user_id` $\to$ `users` |
+| **`sales`** | Transaction headers, discounts, taxes, totals, and payment modes | `customer_id` → `customers`, `user_id` → `users` |
+| **`sales_items`**| Individual line items within each transaction | `sale_id` → `sales`, `product_id` → `products` |
+| **`inventory`** | Audit ledger for stock movements (`in`, `out`, `adjustment`) | `product_id` → `products`, `moved_by` → `users` |
+| **`forecasts`** | Algorithmic prediction outputs, target dates, and confidence scores | `product_id` → `products`, `generated_by` → `users` |
+| **`notifications`**| In-app alert queue for low stock, targets, and system notices | `user_id` → `users` |
 | **`settings`** | Store configuration, base currency (`₹`), and tax thresholds | Global key-value store |
 
 ---
