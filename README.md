@@ -226,56 +226,55 @@ The pre-seeded database includes three ready-to-use accounts with different acce
 The SQLite relational schema (`database/schema.sql`) utilizes standard foreign keys and constraints:
 
 ```mermaid
-erDiagram
-    USERS ||--o{ SALES : "processes"
-    USERS ||--o{ INVENTORY : "logs"
-    USERS ||--o{ NOTIFICATIONS : "receives"
-    CATEGORIES ||--o{ PRODUCTS : "classifies"
-    SUPPLIERS ||--o{ PRODUCTS : "supplies"
-    CUSTOMERS ||--o{ SALES : "places"
-    PRODUCTS ||--o{ SALES_ITEMS : "included in"
-    PRODUCTS ||--o{ INVENTORY : "tracks"
-    SALES ||--|{ SALES_ITEMS : "contains"
-    PRODUCTS ||--o{ FORECASTS : "analyzed in"
+flowchart LR
+    subgraph MasterData ["Master Data"]
+        CAT["Categories"]
+        SUP["Suppliers"]
+        PROD["Products"]
+        CUST["Customers"]
+        USR["Users & Staff"]
+    end
 
-    USERS {
-        int id PK
-        string username UK
-        string email UK
-        string role "admin|manager|staff"
-        string status "active|inactive"
-    }
+    subgraph Operations ["Operations & Orders"]
+        SALE["Sales Orders"]
+        ITEM["Sales Line Items"]
+        INV["Inventory Ledger"]
+    end
 
-    PRODUCTS {
-        int id PK
-        string product_code UK
-        string name
-        decimal cost_price
-        decimal selling_price
-        int stock_quantity
-        int min_stock_level
-        int reorder_quantity
-    }
+    subgraph Intelligence ["Forecasting & Alerts"]
+        FC["Forecasts Engine"]
+        NOTIF["Notifications"]
+        SETT["Settings"]
+    end
 
-    SALES {
-        int id PK
-        string sale_code UK
-        int customer_id FK
-        int user_id FK
-        decimal total_amount
-        decimal grand_total
-        string payment_method
-        date sale_date
-    }
+    CAT -->|categorizes| PROD
+    SUP -->|supplies| PROD
+    CUST -->|places| SALE
+    USR -->|records| SALE
+    USR -->|logs movements| INV
+    USR -->|receives| NOTIF
 
-    INVENTORY {
-        int id PK
-        int product_id FK
-        string movement_type "in|out|adjustment"
-        int quantity
-        string reference
-    }
+    SALE -->|contains| ITEM
+    PROD -->|item reference| ITEM
+    PROD -->|stock tracking| INV
+    PROD -->|historical trend| FC
 ```
+
+### Core Entities & Relations
+
+| Table | Primary Role | Key Foreign Relationships |
+| :--- | :--- | :--- |
+| **`users`** | Authentication, roles (`admin`, `manager`, `staff`), and access status | Referenced by `sales`, `inventory`, `notifications` |
+| **`products`** | SKU, pricing margins, current stock, and safety reorder levels | `category_id` $\to$ `categories`, `supplier_id` $\to$ `suppliers` |
+| **`categories`**| Product classification taxonomy | Parent of `products` |
+| **`suppliers`** | Vendor profiles, contact records, and active catalogue counts | Associated with `products` |
+| **`customers`** | Customer directory and real-time lifetime purchase volume | Associated with `sales` |
+| **`sales`** | Transaction headers, discounts, taxes, totals, and payment modes | `customer_id` $\to$ `customers`, `user_id` $\to$ `users` |
+| **`sales_items`**| Individual line items within each transaction | `sale_id` $\to$ `sales`, `product_id` $\to$ `products` |
+| **`inventory`** | Audit ledger for stock movements (`in`, `out`, `adjustment`) | `product_id` $\to$ `products`, `moved_by` $\to$ `users` |
+| **`forecasts`** | Algorithmic prediction outputs, target dates, and confidence scores | `product_id` $\to$ `products`, `generated_by` $\to$ `users` |
+| **`notifications`**| In-app alert queue for low stock, targets, and system notices | `user_id` $\to$ `users` |
+| **`settings`** | Store configuration, base currency (`₹`), and tax thresholds | Global key-value store |
 
 ---
 
