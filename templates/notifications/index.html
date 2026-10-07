@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <span class="text-secondary">{{ notifications_list|length }} notification(s)</span>
+    <a href="?mark_all=1" class="btn btn-sm btn-outline-primary"><i class="bi bi-check-all me-1"></i>Mark All Read</a>
+</div>
+
+<div class="d-flex flex-column gap-3">
+{% if not notifications_list %}
+    <div class="empty-state"><i class="bi bi-bell-slash"></i><p>No notifications yet.</p></div>
+{% else %}
+{% for n in notifications_list %}
+    <div class="stat-card {{ '' if n.is_read else 'border-start border-4 border-primary' }}" style="--card-color:transparent;">
+        <div class="d-flex align-items-start gap-3">
+            <span style="font-size:24px;">{{ n.icon }}</span>
+            <div class="flex-grow-1">
+                <div class="fw-700">{{ n.title }}</div>
+                <div class="text-secondary" style="font-size:13.5px;">{{ n.message }}</div>
+                <div class="text-muted" style="font-size:11px;margin-top:4px;">{{ fmt_datetime(n.created_at) }}</div>
+            </div>
+            {% if not n.is_read %}
+            <span class="badge bg-primary" style="height:fit-content;">New</span>
+            {% endif %}
+        </div>
+    </div>
+{% endfor %}
+{% endif %}
+</div>
+
+{% endblock %}
