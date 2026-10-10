@@ -73,12 +73,22 @@ def create_app():
             fmt_datetime=format_datetime,
         )
 
+    @app.route("/health")
+    def health():
+        return {"status": "ok", "app": config.APP_NAME, "version": config.APP_VERSION}, 200
+
+    # Auto-initialize database on first run if it does not exist
+    if not os.path.exists(config.DATABASE_PATH):
+        import init_db
+        init_db.build_database()
+
     return app
 
 
 app = create_app()
 
 if __name__ == "__main__":
-    if not os.path.exists(config.DATABASE_PATH):
-        print("Database not found - run `python init_db.py` first.")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1", "yes")
+    app.run(debug=debug, host="0.0.0.0", port=port)
+

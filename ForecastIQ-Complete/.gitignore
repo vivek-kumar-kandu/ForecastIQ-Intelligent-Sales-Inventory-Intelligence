@@ -2,21 +2,63 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
 # Virtual environments
 venv/
 .venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
-# Environment variables
+# Environment variables & secrets
 .env
 .env.*
 !.env.example
 
-# Database
+# SQLite Databases & temporary files
 *.db
-database/forecastinq.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+database/*.db
 
-# IDE files
+# User uploads (keep directory via .gitkeep)
+static/images/uploads/*
+!static/images/uploads/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# IDE & Editor files
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Packaging & testing
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+instance/
